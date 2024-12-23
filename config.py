@@ -3,7 +3,7 @@
 
 # TCP Client Configuration
 SERVER_IP = "127.0.0.1"
-SERVER_PORT = 5001
+SERVER_PORT = 5003
 BUFFER_SIZE = 1024
 
 # States Definition

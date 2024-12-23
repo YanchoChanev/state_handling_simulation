@@ -51,8 +51,11 @@ class TCPClient:
         """
         if self.is_connected:
             try:
-                self.client_socket.sendall(state.encode('utf-8'))
-                return f"Sent state: {state}"
+                gear_id = 5003
+                message = f"ID={gear_id};DATA={state}"
+                self.client_socket.sendall(message.encode('utf-8'))
+                print(f"Sent: {message}")
+                return f"Sent state: {message}"
             except Exception as e:
                 self.disconnect()
                 return f"Send failed: {e}"

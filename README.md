@@ -1,5 +1,14 @@
 # Simulation Project
 
+## Visual Reference
+Include an image here to showcase the application interface:
+
+![Application Interface](UI.png)
+
+Make sure the `interface.png` image is placed in the `assets` folder.
+
+---
+
 ## How to Setup the Simulation
 
 1. **Install Python 3:** Ensure that Python 3 is installed on your system. You can download it from [Python's official website](https://www.python.org/).
@@ -55,15 +64,6 @@ After performing automation tests, ensure to **refresh the connection**.
 
 ## Update After Tests
 After completing any automation test, it is necessary to **refresh the connection** in the application to ensure consistent performance.
-
----
-
-## Visual Reference
-Include an image here to showcase the application interface:
-
-![Application Interface](assets/interface.png)
-
-Make sure the `interface.png` image is placed in the `assets` folder.
 
 ---
 

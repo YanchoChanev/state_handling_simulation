@@ -1,11 +1,9 @@
-# ui.py
-# GUI Logic with Tkinter
-
 import tkinter as tk
 from tkinter import scrolledtext, messagebox
 from config import *
 from client import TCPClient
-from tests import run_test_cases
+from tests import run_smoke_tests, run_stress_test
+import threading
 
 
 class TCPClientApp:
@@ -14,11 +12,10 @@ class TCPClientApp:
         self.root.title("FreeRTOS TCP Client")
         self.root.geometry("600x600")
         self.client = TCPClient(SERVER_IP, SERVER_PORT, BUFFER_SIZE)
+        self.stress_test_running = False
 
         # Connection Status
         self.connection_status = tk.StringVar(value="Disconnected")
-
-        # UI Components
         self.setup_ui()
 
     def setup_ui(self):
@@ -47,12 +44,30 @@ class TCPClientApp:
         self.send_state_button = tk.Button(state_frame, text="Send State", command=self.send_state, state='disabled')
         self.send_state_button.pack(side=tk.RIGHT, padx=10)
 
-        # Test Case Frame
+        # Stress Test Iterations
+        stress_test_frame = tk.Frame(self.root)
+        stress_test_frame.pack(pady=5)
+        tk.Label(stress_test_frame, text="Stress Test Iterations:").grid(row=0, column=0)
+        self.stress_test_iterations_var = tk.StringVar(value="5")
+        tk.Entry(stress_test_frame, textvariable=self.stress_test_iterations_var, width=10).grid(row=0, column=1)
+
+        # Fault Sleep Time
+        tk.Label(stress_test_frame, text="Sleep Time After FAULT (sec):").grid(row=1, column=0)
+        self.fault_sleep_time_var = tk.StringVar(value="30")
+        tk.Entry(stress_test_frame, textvariable=self.fault_sleep_time_var, width=10).grid(row=1, column=1)
+
+        # Test Case Buttons
         test_frame = tk.LabelFrame(self.root, text="Test Cases")
         test_frame.pack(pady=10, fill=tk.X)
 
-        self.run_tests_button = tk.Button(test_frame, text="Run Test Cases", command=self.run_tests, state='disabled')
-        self.run_tests_button.pack(padx=5)
+        self.run_smoke_tests_button = tk.Button(test_frame, text="Run Smoke Tests", command=self.run_smoke_tests)
+        self.run_smoke_tests_button.pack(padx=5)
+
+        self.run_stress_test_button = tk.Button(test_frame, text="Run Stress Test", command=self.run_stress_test)
+        self.run_stress_test_button.pack(padx=5)
+
+        self.stop_stress_test_button = tk.Button(test_frame, text="Stop Stress Test", command=self.stop_stress_test, state='disabled')
+        self.stop_stress_test_button.pack(padx=5)
 
     def connect_to_server(self):
         if not self.client.is_connected:
@@ -61,13 +76,19 @@ class TCPClientApp:
                 self.connection_status.set("Connected")
                 self.status_label.config(fg="green")
                 self.send_state_button.config(state='normal')
-                self.run_tests_button.config(state='normal')
+                self.run_smoke_tests_button.config(state='normal')
+                self.run_stress_test_button.config(state='normal')
             else:
-                messagebox.showerror("Connection Error", result)
+                self.update_chat_area(f"Connection failed: {result}")
+                self.schedule_reconnect()
+            return
         else:
             self.client.disconnect()
             self.connection_status.set("Disconnected")
             self.status_label.config(fg="red")
+            self.send_state_button.config(state='disabled')
+            self.run_smoke_tests_button.config(state='disabled')
+            self.run_stress_test_button.config(state='disabled')
 
     def send_state(self):
         state = self.state_var.get()
@@ -77,8 +98,23 @@ class TCPClientApp:
         else:
             self.update_chat_area("Failed to send state.")
 
-    def run_tests(self):
-        run_test_cases(self.client, self.update_chat_area)
+    def run_smoke_tests(self):
+        threading.Thread(target=run_smoke_tests, args=(self.client, self.update_chat_area), daemon=True).start()
+
+    def run_stress_test(self):
+        try:
+            iterations = int(self.stress_test_iterations_var.get())
+            fault_sleep_time = int(self.fault_sleep_time_var.get())
+            self.stress_test_running = True
+            self.stop_stress_test_button.config(state='normal')
+            threading.Thread(target=run_stress_test, args=(self.client, self.update_chat_area, iterations, fault_sleep_time, lambda: self.stress_test_running), daemon=True).start()
+        except ValueError:
+            messagebox.showerror("Error", "Invalid input for stress test iterations or fault sleep time.")
+
+    def stop_stress_test(self):
+        self.stress_test_running = False
+        self.stop_stress_test_button.config(state='disabled')
+        self.update_chat_area("⚠️ Stress Test Stopped by User.")
 
     def update_chat_area(self, message):
         if message:
@@ -86,6 +122,9 @@ class TCPClientApp:
             self.chat_area.insert(tk.END, message + '\n')
             self.chat_area.config(state='disabled')
             self.chat_area.see(tk.END)
+
+    def schedule_reconnect(self):
+        self.root.after(5000, self.connect_to_server)
 
     def on_close(self):
         self.client.disconnect()

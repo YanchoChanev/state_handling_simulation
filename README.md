@@ -4,6 +4,7 @@
 
 1. **Install Python 3:** Ensure that Python 3 is installed on your system. You can download it from [Python's official website](https://www.python.org/).
 2. **Run Setup Command
+   ```bash
    pip install -r pipinstall.txt --break-system-packages
    ```
    This command will install all necessary dependencies and prepare the environment for the simulation.

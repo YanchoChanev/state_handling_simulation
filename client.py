@@ -26,6 +26,8 @@ class TCPClient:
             self.is_connected = True
             self.receive_thread = threading.Thread(target=self.receive_messages, args=(callback,), daemon=True)
             self.receive_thread.start()
+            # Trigger callback with CONNECTED message
+            callback("CONNECTED")
             return True
         except Exception as e:
             return f"Connection failed: {e}"

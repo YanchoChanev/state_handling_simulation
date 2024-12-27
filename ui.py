@@ -17,6 +17,7 @@ class TCPClientApp:
         # Connection Status
         self.connection_status = tk.StringVar(value="Disconnected")
         self.setup_ui()
+        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
     def setup_ui(self):
         # Connection Frame
@@ -114,7 +115,7 @@ class TCPClientApp:
     def stop_stress_test(self):
         self.stress_test_running = False
         self.stop_stress_test_button.config(state='disabled')
-        self.update_chat_area("⚠️ Stress Test Stopped by User.")
+        self.update_chat_area("Stress Test Stopped by User.")
 
     def update_chat_area(self, message):
         if message:
@@ -127,5 +128,7 @@ class TCPClientApp:
         self.root.after(5000, self.connect_to_server)
 
     def on_close(self):
-        self.client.disconnect()
+        if self.client.is_connected:
+            self.client.disconnect()
+            self.update_chat_area("Client disconnected successfully.")
         self.root.destroy()

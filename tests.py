@@ -2,22 +2,69 @@ import time
 import random
 from config import STATE_SLEEP, STATE_ACTIVE, STATE_FAULT, STATE_MAP
 
+import time
+
+def connection_stable(client, update_chat_area):
+    # Shared storage for message
+    msg_container = {"msg": None}
+
+    def handle_message(msg):
+        """Handle incoming messages from the server."""
+        msg_container["msg"] = msg
+        update_chat_area(f"[Server] {msg}")
+
+    # Ensure the client starts clean
+    client.disconnect()
+    time.sleep(1)
+    update_chat_area("[Info] Client disconnected. Attempting reconnection...")
+
+    # Retry connection until "CONNECTED" is received
+    max_retries = 5  # Limit retries to prevent infinite loops
+    retry_count = 0
+
+    while retry_count < max_retries:
+        try:
+            result = client.connect(handle_message)
+            print(f"Connection result: {result}")
+            
+            if result is True:
+                update_chat_area("[Connection Restored] Client reconnected successfully.")
+                # break
+            else:
+                update_chat_area(f"[Connection Failed] {result}")
+            
+            # Wait briefly to allow the callback to execute
+            time.sleep(1)
+
+            # Check if the callback updated the message
+            if msg_container["msg"] == "CONNECTED":
+                update_chat_area("[Success] Server connection verified.")
+                break
+            
+            retry_count += 1
+            update_chat_area(f"[Retrying Connection] Attempt {retry_count}/{max_retries}")
+            time.sleep(2)
+            
+        except Exception as e:
+            update_chat_area(f"[Connection Error] {str(e)}")
+            retry_count += 1
+            time.sleep(5)
+
+    # Final connection status
+    if msg_container["msg"] == "CONNECTED":
+        update_chat_area("[Final Status] Connected successfully!")
+        return True
+    else:
+        update_chat_area("[Final Status] Failed to connect after retries.")
+        return False
 
 def run_smoke_tests(client, update_chat_area):
     gear_id = 5003
     update_chat_area("**Starting Smoke Tests...**")
 
-    # Disconnect and reconnect before proceeding
-    client.disconnect()
     
-    while not client.is_connected:
-        try:
-            client.connect(lambda msg: update_chat_area(f"[Server] {msg}"))
-            update_chat_area("[Connection Restored] Client reconnected successfully.")
-            time.sleep(1)
-        except Exception as e:
-            update_chat_area(f"[Connection Failed] {str(e)}")
-            time.sleep(5)
+    connection_stable(client, update_chat_area)
+    
 
     smoke_test_cases = [
         (STATE_SLEEP, "Smoke Test: Successful Connection & State Sending (SLEEP)"),
@@ -26,7 +73,7 @@ def run_smoke_tests(client, update_chat_area):
     ]
 
     for state, description in smoke_test_cases:
-        update_chat_area(f"🔄 Test Case: {description}")
+        update_chat_area(f"Test Case: {description}")
         result = client.send_state(state)
         update_chat_area(result)
         time.sleep(1)
@@ -56,18 +103,7 @@ def run_stress_test(client, update_chat_area, iterations=5, speep_on_fault = 30,
                 update_chat_area("⚠️ **Stress Test Stopped by User.**")
                 break
             
-            if iteration > 0:
-                # Disconnect and reconnect before proceeding
-                client.disconnect()
-                
-                while not client.is_connected:
-                    try:
-                        client.connect(lambda msg: update_chat_area(f"[Server] {msg}"))
-                        update_chat_area("[Connection Restored] Client reconnected successfully.")
-                        time.sleep(1)
-                    except Exception as e:
-                        update_chat_area(f"[Connection Failed] {str(e)}")
-                        time.sleep(5)
+            connection_stable(client, update_chat_area)
             
             # Step 1: Send ACTIVE
             update_chat_area("[Step 1] Sending ACTIVE state")
